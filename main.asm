@@ -26,8 +26,8 @@ Main:   mov bx, welcome ; load pointer to welcome message into bx
 	call println	; print welcome message
 	mov bx, prompt	; load ptr to prompt
 	call println	; print prompt
-	xor ah, ah	; ah=0 (get keyboard input mode)
-pil:	int 16h		; actually get it
+pil: 	xor ah, ah	; ah=0 (get keyboard input mode)
+  int 16h		; actually get it
 	cmp al, 's'	; is it s
 	je game		; if so start the game
 	cmp al, 'e'	; is it e
@@ -50,7 +50,7 @@ game:	;read time (used to generate entropy for answer)
 	xor al, al
 	out 0x70, al
 	in al, 0x71
-	mov [SECONDS], al
+	mov [SECOND], al
 	mov al, 2
 	out 0x70, al
 	in al, 0x71
@@ -61,25 +61,54 @@ game:	;read time (used to generate entropy for answer)
 	mov [HOUR], al
 	sti
 	;make the seed
-	mov al, [SECONDS]
-	mov ah, [HOURS]
-	xor al, [MINUTES]
-	xor ah, [MINUTES]
+	mov al, [SECOND]
+	mov ah, [HOUR]
+	xor al, [MINUTE]
+	xor ah, [MINUTE]
 	; generate the random number
-	; algorithm: x = (69 * seed + 420) mod 21
-	mul 69
-	add eax, 420
-	
+	; algorithm: x = (69 * seed + 420) mod 11470
+	mov cx, 420
+	mul cx
+	add eax, 69	
 	; make it fit (mod 11470) then make multiple of 5
+	xor edx, edx
+	mov	ecx, 11470
+	div ecx
+	xor edx, edx
+	push eax
+	; dividend already in eax
+	mov ecx, 5
+	div ecx
+	pop eax
+	sub eax, edx
+	push eax
 	; find the word
-	xor ax, ax
+	mov ax, 1
 	int 10h
+	pop ebx
+	add ebx, 0x7E00
+	mov ah, 0x0E
+	mov al, [ebx]
+	int 10h
+	inc ebx
+	mov al, [ebx]
+	int 10h
+	inc ebx
+	mov al, [ebx]
+	int 10h
+inc ebx
+	mov al, [ebx]
+	int 10h
+	inc ebx
+	mov al, [ebx]
+	int 10h
+	
 iloop:	xor ah, ah
 	int 16h
 	mov ah, 0x0E
 	int 10h
-	inc [CHARC]
-	cmp [CHARC],5
+	inc byte [CHARC]
+	cmp byte [CHARC],5
 	jne iloop
 	call newline
 	

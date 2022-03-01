@@ -7,3 +7,7 @@ all:
 
 run:
 	qemu-system-x86_64 -fda flordle.img
+
+debug:
+	xterm -e 'gdb --command=./gdbcommands' &
+	qemu-system-x86_64 -S -s -fda flordle.img
