@@ -6,6 +6,7 @@ build: 	mov [BOOTDRV], dl ; save boot drive
 	; read words
 	xor ax, ax	; ax=0
 	mov es, ax	; es=0
+	mov ss, ax
 	mov ah, 2	; read mode
 	mov al, 17	; read 23 sectors in total (17 now)
 	mov ch, 0	; start at cylinder 0
@@ -45,7 +46,10 @@ shutdown:mov ax, 0x5301
 	mov cx, 3
 	int 15h
 	jmp $		; we should never get here
-game:	;read time (used to generate entropy for answer)
+game:
+	mov ax, 1
+	int 10h
+	;read time (used to generate entropy for answer)	
 	cli
 	xor al, al
 	out 0x70, al
@@ -61,6 +65,7 @@ game:	;read time (used to generate entropy for answer)
 	mov [HOUR], al
 	sti
 	;make the seed
+	xor eax, eax
 	mov al, [SECOND]
 	mov ah, [HOUR]
 	xor al, [MINUTE]
@@ -69,23 +74,30 @@ game:	;read time (used to generate entropy for answer)
 	; algorithm: x = (69 * seed + 420) mod 11470
 	mov cx, 420
 	mul cx
+	mov dx, ax
+	mov ax, cx
+	rol eax, 16
+	mov ax, dx
 	add eax, 69	
+	cmp eax, 11470
+	jb fit
 	; make it fit (mod 11470) then make multiple of 5
-	xor edx, edx
-	mov	ecx, 11470
-	div ecx
-	xor edx, edx
+	;xor edx, edx
+	;mov	ecx, 11470
+	;div ecx
+	;xor edx, edx
+fit:
 	push eax
+	mov dword [RES1], eax
 	; dividend already in eax
+	xor edx, edx
 	mov ecx, 5
 	div ecx
 	pop eax
+	mov dword [RES2], eax
 	sub eax, edx
-	push eax
-	; find the word
-	mov ax, 1
-	int 10h
-	pop ebx
+	mov dword [AW], eax
+	mov ebx, eax
 	add ebx, 0x7E00
 	mov ah, 0x0E
 	mov al, [ebx]
@@ -96,7 +108,7 @@ game:	;read time (used to generate entropy for answer)
 	inc ebx
 	mov al, [ebx]
 	int 10h
-inc ebx
+	inc ebx
 	mov al, [ebx]
 	int 10h
 	inc ebx
@@ -140,6 +152,9 @@ CHARC: db 0
 SECOND: db 0
 MINUTE: db 0
 HOUR: db 0
+RES1: dd 0
+RES2: dd 0
+AW: dd 0
 
 times 510-($-$$) db 0
 dw 0xAA55
